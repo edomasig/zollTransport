@@ -32,11 +32,11 @@ const DeviceLogsPage = () => {
   }, [deviceId]);
 
   if (loading) {
-    return <div className="min-h-screen bg-neutral-light text-gray-800 font-sans p-4 flex items-center justify-center">Loading logs...</div>;
+    return <div className="min-h-screen bg-neutral-light text-gray-800 font-sans p-4 flex items-center justify-center text-lg font-medium">Loading logs...</div>;
   }
 
   if (error) {
-    return <div className="min-h-screen bg-neutral-light text-gray-800 font-sans p-4 flex items-center justify-center text-red-600">Error: {error}</div>;
+    return <div className="min-h-screen bg-neutral-light text-gray-800 font-sans p-4 flex items-center justify-center text-red-600 text-lg font-medium">Error: {error}</div>;
   }
 
   return (

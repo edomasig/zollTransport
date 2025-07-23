@@ -21,6 +21,8 @@ export default function LogDevice() {
     nurseName: '',
   });
 
+  const [isLoadingSubmit, setIsLoadingSubmit] = useState(false);
+
   useEffect(() => {
     if (deviceId) {
       setFormData((prevData) => ({
@@ -40,6 +42,7 @@ export default function LogDevice() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoadingSubmit(true);
     try {
       const response = await fetch('/api/loggers/create', {
         method: 'POST',
@@ -240,8 +243,9 @@ export default function LogDevice() {
           <button
             type="submit"
             className="w-full inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-lg font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-light transition duration-150 ease-in-out"
+            disabled={isLoadingSubmit}
           >
-            Submit Log
+            {isLoadingSubmit ? 'Submitting...' : 'Submit Log'}
           </button>
         </form>
       </div>

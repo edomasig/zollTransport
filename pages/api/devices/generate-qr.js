@@ -17,8 +17,10 @@ export default async function handler(req, res) {
         where: { id: deviceId },
       });
 
+      let status;
+
       if (!device) {
-        // If device doesn't exist, create a new one (you might want more robust device creation logic)
+        // If device doesn't exist, create a new one
         device = await prisma.device.create({
           data: {
             id: deviceId,
@@ -27,6 +29,10 @@ export default async function handler(req, res) {
             qrCodeUrl: '', // Placeholder, will be updated
           },
         });
+        status = 'created';
+      } else {
+        // If device exists, we are updating its QR code
+        status = 'updated';
       }
 
       // Generate QR code for the log page URL
@@ -41,7 +47,7 @@ export default async function handler(req, res) {
         },
       });
 
-      res.status(200).json({ qrCodeUrl: updatedDevice.qrCodeUrl, device: updatedDevice });
+      res.status(200).json({ qrCodeUrl: updatedDevice.qrCodeUrl, device: updatedDevice, status });
     } catch (error) {
       console.error('Error generating QR code:', error);
       res.status(500).json({ message: 'Error generating QR code', error: error.message });
