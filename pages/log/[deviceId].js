@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 
 export default function LogDevice() {
   const router = useRouter();
-  const { id: deviceId } = router.query;
+  const { deviceId: deviceId } = router.query;
 
   const [formData, setFormData] = useState({
     day: new Date().toISOString().split("T")[0],
@@ -59,7 +59,7 @@ export default function LogDevice() {
           day: new Date().toISOString().split("T")[0],
           weekDay: new Date().toLocaleString("en-US", { weekday: "long" }),
           time: new Date().toTimeString().split(" ")[0],
-          deviceId: deviceId || "",
+          deviceId: deviceId.toString() || "",
           dailyCodeReadinessTest: "false",
           dailyBatteryCheck: "false",
           weeklyManualDefibTest: "false",
