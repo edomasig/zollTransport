@@ -1,0 +1,19 @@
+ ⨯ ./pages/admin/logs/[deviceId].js
+Error:
+  × the name `default` is exported multiple times
+     ╭─[D:\Drawer\Projects\ZollTransport\nurse-logger-app\pages\admin\logs\[deviceId].js:789:1]
+ 789 │   );
+ 790 │ };
+ 791 │
+ 792 │ export default DeviceLogsPage;
+     · ───────────────┬──────────────
+     ·                ╰── previous exported here
+ 793 │
+ 794 │ export default DeviceLogsPage;
+     · ───────────────┬──────────────
+     ·                ╰── exported more than once
+     ╰────
+
+Error:
+  ☞ Exported identifiers must be unique
+ GET /admin/logs/localdev 500 in 4769ms

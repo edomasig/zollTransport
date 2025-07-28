@@ -30,11 +30,16 @@ export default async function handler(req, res) {
         return res.status(400).json({ message: "Device not found" });
       }
 
+      // Sanitize string fields to remove null bytes
+      function sanitizeString(str) {
+        return typeof str === "string" ? str.replace(/\u0000/g, "") : str;
+      }
+
       const newLog = await prisma.log.create({
         data: {
           day: new Date(day),
-          weekDay,
-          time: new Date(`${day}T${time}`),
+          weekDay: sanitizeString(weekDay),
+          time: sanitizeString(time), // Store as string
           deviceId,
           dailyCodeReadinessTest: dailyCodeReadinessTest === "true",
           dailyBatteryCheck: dailyBatteryCheck === "true",
@@ -43,8 +48,8 @@ export default async function handler(req, res) {
           weeklyRecorder: weeklyRecorder === "true",
           padsNotExpired: padsNotExpired === "true",
           expirationDate: new Date(expirationDate),
-          correctiveAction,
-          nurseName,
+          correctiveAction: sanitizeString(correctiveAction),
+          nurseName: sanitizeString(nurseName),
         },
       });
       res.status(201).json(newLog);

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import Cookies from "js-cookie";
 
 const AdminDashboard = () => {
+  const router = useRouter();
   const [deviceIdInput, setDeviceIdInput] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [devices, setDevices] = useState([]);
@@ -207,6 +210,20 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+      Cookies.remove("auth");
+      router.push("/login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+      setMessage("An error occurred during logout.");
+      setMessageType("error");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Toast Notification */}
@@ -249,6 +266,11 @@ const AdminDashboard = () => {
                   Healthcare Equipment Logger
                 </span>
               </div>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                Logout
+              </button>
             </div>
           </div>
         </div>

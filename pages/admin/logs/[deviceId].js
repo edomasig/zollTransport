@@ -9,6 +9,10 @@ const DeviceLogsPage = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [currentLog, setCurrentLog] = useState(null);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("error"); // 'success', 'error', 'info'
 
   // Filter states
   const [fromDate, setFromDate] = useState("");
@@ -24,6 +28,89 @@ const DeviceLogsPage = () => {
   // Sort state
   const [sortField, setSortField] = useState("day");
   const [sortDirection, setSortDirection] = useState("desc");
+
+  const getMessageStyles = () => {
+    const baseStyles =
+      "fixed top-4 right-4 z-50 max-w-md p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out";
+    switch (messageType) {
+      case "success":
+        return `${baseStyles} bg-green-50 border border-green-200 text-green-800`;
+      case "error":
+        return `${baseStyles} bg-red-50 border border-red-200 text-red-800`;
+      case "info":
+        return `${baseStyles} bg-blue-50 border border-blue-200 text-blue-800`;
+      default:
+        return `${baseStyles} bg-gray-50 border border-gray-200 text-gray-800`;
+    }
+  };
+
+  const getMessageIcon = () => {
+    switch (messageType) {
+      case "success":
+        return "✅";
+      case "error":
+        return "❌";
+      case "info":
+        return "ℹ️";
+      default:
+        return "📝";
+    }
+  };
+
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage("");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  const handleEditClick = (log) => {
+    setCurrentLog({
+      ...log,
+      day: new Date(log.day).toISOString().split("T")[0], // Format to YYYY-MM-DD
+      // time: new Date(log.time).toLocaleTimeString("en-US", {
+      //   hour: "2-digit",
+      //   minute: "2-digit",
+      //   hour12: false,
+      // }), // Format to HH:MM
+      expirationDate: log.expirationDate
+        ? new Date(log.expirationDate).toISOString().split("T")[0]
+        : "",
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleUpdateLog = async (updatedLog) => {
+    try {
+      const response = await fetch(`/api/loggers/logId/${updatedLog.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedLog),
+      });
+
+      if (response.ok) {
+        setMessage("Log updated successfully!");
+        setMessageType("success");
+        setEditModalOpen(false);
+        setCurrentLog(null);
+        fetchLogs(); // Re-fetch logs to update the table
+      } else {
+        const errorData = await response.json();
+        setMessage(
+          `Error updating log: ${errorData.message || response.statusText}`
+        );
+        setMessageType("error");
+      }
+    } catch (error) {
+      console.error("Error updating log:", error);
+      setMessage("An unexpected error occurred during log update.");
+      setMessageType("error");
+    }
+  };
 
   useEffect(() => {
     if (deviceId) {
@@ -412,6 +499,7 @@ const DeviceLogsPage = () => {
                       { key: "padsNotExpired", label: "Pads OK" },
                       { key: "expirationDate", label: "Exp. Date" },
                       { key: "correctiveAction", label: "Action" },
+                      { key: "actions", label: "" }, // New column for actions
                     ].map((column) => (
                       <th
                         key={column.key}
@@ -533,6 +621,13 @@ const DeviceLogsPage = () => {
                         <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
                           {log.correctiveAction || "-"}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => handleEditClick(log)}
+                            className="text-blue-600 hover:text-blue-900">
+                            Edit
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -599,6 +694,238 @@ const DeviceLogsPage = () => {
             )}
           </div>
         )}
+      </div>
+
+      {editModalOpen && (
+        <EditLogModal
+          log={currentLog}
+          onClose={() => setEditModalOpen(false)}
+          onSave={handleUpdateLog}
+        />
+      )}
+    </div>
+  );
+};
+
+const EditLogModal = ({ log, onClose, onSave }) => {
+  const [formData, setFormData] = useState(log);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
+      <div className="bg-white p-8 rounded-lg shadow-xl max-w-2xl w-full m-4">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          Edit Log Entry
+        </h2>
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Date and Time */}
+          <div>
+            <label
+              htmlFor="day"
+              className="block text-sm font-medium text-gray-700">
+              Date
+            </label>
+            <input
+              type="date"
+              name="day"
+              id="day"
+              value={formData.day}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              required
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="time"
+              className="block text-sm font-medium text-gray-700">
+              Time
+            </label>
+            <input
+              type="time"
+              name="time"
+              id="time"
+              value={formData.time}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              required
+            />
+          </div>
+
+          {/* Nurse Name */}
+          <div className="md:col-span-2">
+            <label
+              htmlFor="nurseName"
+              className="block text-sm font-medium text-gray-700">
+              Nurse Name
+            </label>
+            <input
+              type="text"
+              name="nurseName"
+              id="nurseName"
+              value={formData.nurseName}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              required
+            />
+          </div>
+
+          {/* Checkboxes */}
+          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="dailyCodeReadinessTest"
+                id="dailyCodeReadinessTest"
+                checked={formData.dailyCodeReadinessTest}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="dailyCodeReadinessTest"
+                className="ml-2 block text-sm text-gray-900">
+                Daily Code Readiness Test
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="dailyBatteryCheck"
+                id="dailyBatteryCheck"
+                checked={formData.dailyBatteryCheck}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="dailyBatteryCheck"
+                className="ml-2 block text-sm text-gray-900">
+                Daily Battery Check
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="weeklyManualDefibTest"
+                id="weeklyManualDefibTest"
+                checked={formData.weeklyManualDefibTest}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="weeklyManualDefibTest"
+                className="ml-2 block text-sm text-gray-900">
+                Weekly Manual Defib Test
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="weeklyPacerTest"
+                id="weeklyPacerTest"
+                checked={formData.weeklyPacerTest}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="weeklyPacerTest"
+                className="ml-2 block text-sm text-gray-900">
+                Weekly Pacer Test
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="weeklyRecorder"
+                id="weeklyRecorder"
+                checked={formData.weeklyRecorder}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="weeklyRecorder"
+                className="ml-2 block text-sm text-gray-900">
+                Weekly Recorder Check
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="padsNotExpired"
+                id="padsNotExpired"
+                checked={formData.padsNotExpired}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="padsNotExpired"
+                className="ml-2 block text-sm text-gray-900">
+                Pads Not Expired
+              </label>
+            </div>
+          </div>
+
+          {/* Expiration Date */}
+          <div>
+            <label
+              htmlFor="expirationDate"
+              className="block text-sm font-medium text-gray-700">
+              Pads Expiration Date
+            </label>
+            <input
+              type="date"
+              name="expirationDate"
+              id="expirationDate"
+              value={formData.expirationDate}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            />
+          </div>
+
+          {/* Corrective Action */}
+          <div className="md:col-span-2">
+            <label
+              htmlFor="correctiveAction"
+              className="block text-sm font-medium text-gray-700">
+              Corrective Action
+            </label>
+            <textarea
+              name="correctiveAction"
+              id="correctiveAction"
+              value={formData.correctiveAction || ""}
+              onChange={handleChange}
+              rows="3"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
+          </div>
+
+          {/* Buttons */}
+          <div className="md:col-span-2 flex justify-end space-x-3 mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+              Save Changes
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

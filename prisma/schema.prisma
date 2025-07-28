@@ -22,7 +22,7 @@ model Log {
   id                          String   @id @default(uuid())
   day                         DateTime
   weekDay                     String
-  time                        DateTime
+  time                        String
   deviceId                    String
   dailyCodeReadinessTest      Boolean
   dailyBatteryCheck           Boolean
