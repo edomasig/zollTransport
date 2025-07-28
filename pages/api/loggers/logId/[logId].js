@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         data: {
           day: new Date(day),
           weekDay,
-          time: new Date(time),
+          time,
           deviceId,
           dailyCodeReadinessTest: dailyCodeReadinessTest === 'true',
           dailyBatteryCheck: dailyBatteryCheck === 'true',

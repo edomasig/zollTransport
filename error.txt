@@ -1,19 +1,42 @@
- ⨯ ./pages/admin/logs/[deviceId].js
-Error:
-  × the name `default` is exported multiple times
-     ╭─[D:\Drawer\Projects\ZollTransport\nurse-logger-app\pages\admin\logs\[deviceId].js:789:1]
- 789 │   );
- 790 │ };
- 791 │
- 792 │ export default DeviceLogsPage;
-     · ───────────────┬──────────────
-     ·                ╰── previous exported here
- 793 │
- 794 │ export default DeviceLogsPage;
-     · ───────────────┬──────────────
-     ·                ╰── exported more than once
-     ╰────
+Error updating log entry c10f7b71-9aa8-41c6-8fb8-af3c31e380ae: PrismaClientValidationError:
+Invalid `prisma.log.update()` invocation:
 
-Error:
-  ☞ Exported identifiers must be unique
- GET /admin/logs/localdev 500 in 4769ms
+{
+  where: {
+    id: "c10f7b71-9aa8-41c6-8fb8-af3c31e380ae"
+  },
+  data: {
+    day: new Date("2025-07-28T00:00:00.000Z"),
+    weekDay: "Monday",
+    time: new Date("Invalid Date"),
+          ~~~~~~~~~~~~~~~~~~~~~~~~
+    deviceId: "localdev",
+    dailyCodeReadinessTest: false,
+    dailyBatteryCheck: false,
+    weeklyManualDefibTest: false,
+    weeklyPacerTest: false,
+    weeklyRecorder: false,
+    padsNotExpired: false,
+    expirationDate: new Date("2025-07-29T00:00:00.000Z"),     
+    correctiveAction: "test",
+    nurseName: "ED"
+  }
+}
+
+Invalid value for argument `time`: Provided Date object is invalid. Expected Date.
+    at wn (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:29:1363)        
+    at e.throwValidationError (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:29:10206)
+    at sa (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:29:7746)        
+    at aa (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:29:8908)
+    at mr (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:29:6037)
+    at vn (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:29:5902)
+    at D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:130:10186
+    at Object.runInChildSpan (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:121:1509)
+    at t._executeRequest (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:130:10165)
+    at Na (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:31:9955)
+    at l (D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:130:9639)
+    at D:\Drawer\Projects\ZollTransport\nurse-logger-app\node_modules\@prisma\client\runtime\library.js:130:9933
+    at AsyncResource.runInAsyncScope (node:async_hooks:214:14) {
+  clientVersion: '5.22.0'
+}
+ PUT /api/loggers/logId/c10f7b71-9aa8-41c6-8fb8-af3c31e380ae 500 in 6m
