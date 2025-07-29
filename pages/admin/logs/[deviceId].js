@@ -1,7 +1,6 @@
 import { useRouter } from "next/router";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { exportLogsToExcel } from "../../../components/exportLogsToExcel";
-// Using simple text/unicode icons instead of Heroicons to avoid dependency issues
 
 const DeviceLogsPage = () => {
   const router = useRouter();
@@ -12,7 +11,7 @@ const DeviceLogsPage = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [currentLog, setCurrentLog] = useState(null);
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("error"); // 'success', 'error', 'info'
+  const [messageType, setMessageType] = useState("error");
 
   // Filter states
   const [fromDate, setFromDate] = useState("");
@@ -66,77 +65,107 @@ const DeviceLogsPage = () => {
     }
   }, [message]);
 
+  // Define fetchLogs function in component scope with useCallback to prevent unnecessary re-renders
+  const fetchLogs = useCallback(async () => {
+    if (!deviceId) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/loggers/${deviceId}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Sort by most recent date by default
+        const sortedData = data.sort(
+          (a, b) => new Date(b.day) - new Date(a.day)
+        );
+        setLogs(sortedData);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || "Failed to fetch logs");
+      }
+    } catch (err) {
+      console.error("Error fetching logs:", err);
+      setError("An unexpected error occurred while fetching logs.");
+    } finally {
+      setLoading(false);
+    }
+  }, [deviceId]);
+
   const handleEditClick = (log) => {
+    // Properly format the log data for editing
+    const logDate = new Date(log.day);
+    const formattedTime =
+      log.time ||
+      logDate.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
     setCurrentLog({
       ...log,
-      day: new Date(log.day).toISOString().split("T")[0], // Format to YYYY-MM-DD
-      // time: new Date(log.time).toLocaleTimeString("en-US", {
-      //   hour: "2-digit",
-      //   minute: "2-digit",
-      //   hour12: false,
-      // }), // Format to HH:MM
+      day: logDate.toISOString().split("T")[0], // Format to YYYY-MM-DD
+      time: formattedTime,
       expirationDate: log.expirationDate
         ? new Date(log.expirationDate).toISOString().split("T")[0]
         : "",
+      // Ensure all checkbox fields are boolean
+      dailyCodeReadinessTest: !!log.dailyCodeReadinessTest,
+      dailyBatteryCheck: !!log.dailyBatteryCheck,
+      weeklyManualDefibTest: !!log.weeklyManualDefibTest,
+      weeklyPacerTest: !!log.weeklyPacerTest,
+      weeklyRecorder: !!log.weeklyRecorder,
+      padsNotExpired: !!log.padsNotExpired,
     });
     setEditModalOpen(true);
   };
 
-  const handleUpdateLog = async (updatedLog) => {
-    try {
-      const response = await fetch(`/api/loggers/logId/${updatedLog.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedLog),
-      });
+  const handleUpdateLog = useCallback(
+    async (updatedLog) => {
+      try {
+        console.log("Data being sent to API:", updatedLog);
 
-      if (response.ok) {
-        setMessage("Log updated successfully!");
-        setMessageType("success");
-        setEditModalOpen(false);
-        setCurrentLog(null);
-        fetchLogs(); // Re-fetch logs to update the table
-      } else {
-        const errorData = await response.json();
-        setMessage(
-          `Error updating log: ${errorData.message || response.statusText}`
-        );
+        const apiUrl = `/api/loggers/logId/${updatedLog.id}`;
+        console.log("API URL being called:", apiUrl);
+
+        // Make sure we're sending the correct ID
+        const response = await fetch(apiUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedLog),
+        });
+
+        console.log("Response status:", response.status);
+        console.log("Response ok:", response.ok);
+
+        const responseData = await response.json();
+        console.log("API response:", responseData);
+
+        if (response.ok) {
+          setMessage("Log updated successfully!");
+          setMessageType("success");
+          setEditModalOpen(false);
+          setCurrentLog(null);
+          await fetchLogs(); // Re-fetch logs to update the table
+        } else {
+          setMessage(
+            `Error updating log: ${responseData.message || response.statusText}`
+          );
+          setMessageType("error");
+        }
+      } catch (error) {
+        console.error("Error updating log:", error);
+        setMessage("An unexpected error occurred during log update.");
         setMessageType("error");
       }
-    } catch (error) {
-      console.error("Error updating log:", error);
-      setMessage("An unexpected error occurred during log update.");
-      setMessageType("error");
-    }
-  };
+    },
+    [fetchLogs]
+  );
 
   useEffect(() => {
-    if (deviceId) {
-      const fetchLogs = async () => {
-        try {
-          const response = await fetch(`/api/loggers/${deviceId}`);
-          if (response.ok) {
-            const data = await response.json();
-            // Sort by most recent date by default
-            const sortedData = data.sort(
-              (a, b) => new Date(b.day) - new Date(a.day)
-            );
-            setLogs(sortedData);
-          } else {
-            const errorData = await response.json();
-            setError(errorData.message || "Failed to fetch logs");
-          }
-        } catch (err) {
-          console.error("Error fetching logs:", err);
-          setError("An unexpected error occurred while fetching logs.");
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchLogs();
-    }
+    fetchLogs();
   }, [deviceId]);
 
   // Get unique nurses for filter dropdown
@@ -292,6 +321,21 @@ const DeviceLogsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Message notification */}
+      {message && (
+        <div className={getMessageStyles()}>
+          <div className="flex items-center">
+            <span className="mr-2">{getMessageIcon()}</span>
+            <span>{message}</span>
+            <button
+              onClick={() => setMessage("")}
+              className="ml-4 text-lg font-bold hover:opacity-70">
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -499,7 +543,7 @@ const DeviceLogsPage = () => {
                       { key: "padsNotExpired", label: "Pads OK" },
                       { key: "expirationDate", label: "Exp. Date" },
                       { key: "correctiveAction", label: "Action" },
-                      { key: "actions", label: "" }, // New column for actions
+                      { key: "actions", label: "" },
                     ].map((column) => (
                       <th
                         key={column.key}
@@ -720,7 +764,19 @@ const EditLogModal = ({ log, onClose, onSave }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+
+    // Ensure all boolean fields are properly set
+    const sanitizedData = {
+      ...formData,
+      dailyCodeReadinessTest: !!formData.dailyCodeReadinessTest,
+      dailyBatteryCheck: !!formData.dailyBatteryCheck,
+      weeklyManualDefibTest: !!formData.weeklyManualDefibTest,
+      weeklyPacerTest: !!formData.weeklyPacerTest,
+      weeklyRecorder: !!formData.weeklyRecorder,
+      padsNotExpired: !!formData.padsNotExpired,
+    };
+
+    onSave(sanitizedData);
   };
 
   return (
@@ -791,9 +847,9 @@ const EditLogModal = ({ log, onClose, onSave }) => {
                 type="checkbox"
                 name="dailyCodeReadinessTest"
                 id="dailyCodeReadinessTest"
-                checked={formData.dailyCodeReadinessTest}
+                checked={Boolean(formData.dailyCodeReadinessTest)}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <label
                 htmlFor="dailyCodeReadinessTest"
@@ -806,9 +862,9 @@ const EditLogModal = ({ log, onClose, onSave }) => {
                 type="checkbox"
                 name="dailyBatteryCheck"
                 id="dailyBatteryCheck"
-                checked={formData.dailyBatteryCheck}
+                checked={Boolean(formData.dailyBatteryCheck)}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <label
                 htmlFor="dailyBatteryCheck"
@@ -821,9 +877,9 @@ const EditLogModal = ({ log, onClose, onSave }) => {
                 type="checkbox"
                 name="weeklyManualDefibTest"
                 id="weeklyManualDefibTest"
-                checked={formData.weeklyManualDefibTest}
+                checked={Boolean(formData.weeklyManualDefibTest)}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <label
                 htmlFor="weeklyManualDefibTest"
@@ -836,9 +892,9 @@ const EditLogModal = ({ log, onClose, onSave }) => {
                 type="checkbox"
                 name="weeklyPacerTest"
                 id="weeklyPacerTest"
-                checked={formData.weeklyPacerTest}
+                checked={Boolean(formData.weeklyPacerTest)}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <label
                 htmlFor="weeklyPacerTest"
@@ -851,9 +907,9 @@ const EditLogModal = ({ log, onClose, onSave }) => {
                 type="checkbox"
                 name="weeklyRecorder"
                 id="weeklyRecorder"
-                checked={formData.weeklyRecorder}
+                checked={Boolean(formData.weeklyRecorder)}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <label
                 htmlFor="weeklyRecorder"
@@ -866,9 +922,9 @@ const EditLogModal = ({ log, onClose, onSave }) => {
                 type="checkbox"
                 name="padsNotExpired"
                 id="padsNotExpired"
-                checked={formData.padsNotExpired}
+                checked={Boolean(formData.padsNotExpired)}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
               <label
                 htmlFor="padsNotExpired"
